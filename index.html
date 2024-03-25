@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Algoritmo Genético - Geração Inicial</title>
+    <link rel="stylesheet" href="style/style.css">
+</head>
+
+<body>
+    <h1>Algoritmo Genético - Geração Inicial</h1>
+    <div>
+        <label for="populationSize">Tamanho da População:</label>
+        <input type="number" id="populationSize" min="1" value="100"><br>
+        <label for="maxGenerations">Máximo de Gerações:</label>
+        <input type="number" id="maxGenerations" min="1" value="50"><br>
+        <label for="crossoverProbability">Probabilidade de Cruzamento (0-1):</label>
+        <input type="number" id="crossoverProbability" min="0" max="1" step="0.01" value="0.95"><br>
+        <label for="mutationProbability">Probabilidade de Mutação (0-1):</label>
+        <input type="number" id="mutationProbability" min="0" max="1" step="0.01" value="0.05"><br>
+        <label for="numCuts">Número de Cortes:</label>
+        <input type="number" id="numCuts" min="1" value="3">
+        <button id="generateButton">Gerar</button>
+    </div>
+    <div>
+        <label for="bestGeneration">Melhor Geração:</label>
+        <input type="text" id="bestGeneration" disabled>
+        <label for="bestFitness">Nota:</label>
+        <input type="text" id="bestFitness" disabled>
+    </div>
+    <div id="schedule"></div>
+
+</body>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const scheduleDiv = document.getElementById('schedule');
+        const generateButton = document.getElementById('generateButton');
+        const bestGenerationInput = document.getElementById('bestGeneration');
+        const bestFitnessInput = document.getElementById('bestFitness');
+
+        generateButton.addEventListener('click', function () {
+            const populationSize = parseInt(document.getElementById('populationSize').value);
+            const maxGenerations = parseInt(document.getElementById('maxGenerations').value);
+            const crossoverProbability = parseFloat(document.getElementById('crossoverProbability').value);
+            const mutationProbability = parseFloat(document.getElementById('mutationProbability').value);
+            const numCuts = parseInt(document.getElementById('numCuts').value);
+
+            sessionStorage.setItem('maxGenerations', maxGenerations);
+
+            const generations = [];
+            let minFitness = Infinity;
+            let bestGenerationIndex = -1;
+            for (let i = 0; i < maxGenerations; i++) {
+                const choqueCount = generateSchedules();
+                generations.push({
+                    generation: i + 1,
+                    schedule: scheduleDiv.innerHTML,
+                    fitness: choqueCount
+                });
+                if (choqueCount < minFitness) {
+                    minFitness = choqueCount;
+                    bestGenerationIndex = i;
+                }
+            }
+
+            sessionStorage.setItem('generations', JSON.stringify(generations));
+
+            const bestGeneration = generations[bestGenerationIndex];
+            const conflicts = findConflicts(bestGeneration);
+
+            sessionStorage.setItem('conflicts', JSON.stringify(conflicts));
+
+        
+            const bestGenerationNumber = bestGenerationIndex + 1;
+            const bestGenerationFitness = minFitness;
+            bestGenerationInput.value = bestGenerationNumber;
+            bestFitnessInput.value = bestGenerationFitness;
+
+            alert(`A melhor geração é a ${bestGenerationNumber} com ${bestGenerationFitness} conflitos de horários.`);
+        });
+
+        function generateSchedules() {
+            scheduleDiv.innerHTML = ''; 
+            const days = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta'];
+            const periods = ['1º', '2º', '3º', '4º', '5º'];
+            const teachers = ['Prof1', 'Prof2', 'Prof3', 'Prof4', 'Prof5', 'Prof6', 'Prof7', 'Prof8', 'Prof9', 'Prof10', 'Prof11', 'Prof12'];
+            const subjects = ['Disciplina1', 'Disciplina2', 'Disciplina3', 'Disciplina4', 'Disciplina5', 'Disciplina6', 'Disciplina7', 'Disciplina8', 'Disciplina9', 'Disciplina10', 'Disciplina11', 'Disciplina12', 'Disciplina13', 'Disciplina14', 'Disciplina15', 'Disciplina16', 'Disciplina17', 'Disciplina18', 'Disciplina19', 'Disciplina20', 'Disciplina21', 'Disciplina22', 'Disciplina23', 'Disciplina24', 'Disciplina25'];
+            let choqueCount = 0;
+
+            for (let period of periods) {
+                const periodDiv = document.createElement('div');
+                periodDiv.classList.add('period');
+                const title = document.createElement('h2');
+                title.textContent = `${period} período`;
+                periodDiv.appendChild(title);
+                for (let day of days) {
+                    const dayDiv = document.createElement('div');
+                    dayDiv.classList.add('day');
+                    const dayTitle = document.createElement('h3');
+                    dayTitle.textContent = day;
+                    dayDiv.appendChild(dayTitle);
+                    const usedTeachers = new Set();
+                    const usedSubjects = new Set();
+                    for (let i = 0; i < 4; i++) { 
+                        const classDiv = document.createElement('div');
+                        const randomTeacher = teachers[Math.floor(Math.random() * teachers.length)];
+                        const randomSubject = subjects[Math.floor(Math.random() * subjects.length)];
+                        if (usedTeachers.has(randomTeacher) || usedSubjects.has(randomSubject)) {
+                            classDiv.style.color = 'red'; 
+                            choqueCount++; 
+                        }
+                        classDiv.textContent = `${randomTeacher} - ${randomSubject}`;
+                        dayDiv.appendChild(classDiv);
+                        usedTeachers.add(randomTeacher);
+                        usedSubjects.add(randomSubject);
+                    }
+                    periodDiv.appendChild(dayDiv);
+                }
+                scheduleDiv.appendChild(periodDiv);
+            }
+
+            return choqueCount; 
+        }
+
+        function findConflicts(generation) {
+            const conflicts = new Set();
+            const schedule = new DOMParser().parseFromString(generation.schedule, 'text/html');
+            const classes = schedule.querySelectorAll('.day > div');
+
+            classes.forEach((classDiv, index) => {
+                const currentText = classDiv.textContent.trim();
+                const currentDayIndex = Math.floor(index / 4) + 1; 
+
+                for (let otherIndex = index + 1; otherIndex < classes.length; otherIndex++) {
+                    const otherClassDiv = classes[otherIndex];
+                    const otherText = otherClassDiv.textContent.trim();
+                    const otherDayIndex = Math.floor(otherIndex / 4) + 1; 
+                    if (currentText === otherText && currentDayIndex === otherDayIndex) {
+                        conflicts.add(`Conflito entre aula ${index + 1} e aula ${otherIndex + 1}`);
+                    }
+                }
+            });
+
+            return Array.from(conflicts);
+        }
+
+    });
+</script>
+
+</html>
